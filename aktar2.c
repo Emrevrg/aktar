@@ -433,7 +433,8 @@ static size_t *BOS; static size_t NBOS; static _Atomic size_t BOS_I;
 
 static void *bos_is(void *arg) {                          // boş dosyalar parçaya girmez, ayrıca paralel oluşturulur
     (void)arg; fdc_t fc = FDC_BOS;
-    for (size_t i; (i = atomic_fetch_add(&BOS_I, 1)) < NBOS;) tek_yaz(&fc, &E[BOS[i]], NULL);
+    for (size_t i; (i = atomic_fetch_add(&BOS_I, 1024)) < NBOS;)   // parti parti: iş parçacıkları aynı klasörün kilidinde sıraya girmesin
+        for (size_t j = i; j < i + 1024 && j < NBOS; j++) tek_yaz(&fc, &E[BOS[j]], NULL);
     if (fc.dfd >= 0) close(fc.dfd);
     return NULL;
 }
@@ -478,8 +479,7 @@ static int calis_send(int argc, char **argv) {
 }
 
 static int calis_recv(int argc, char **argv) {
-    (void)argc; int port = atoi(argv[2]); BASE = argv[3]; mkdir_p(BASE); umask(0);        // dosya kipi oluştururken kesin verilir
-    int ur = open("/dev/urandom", O_RDONLY); if (ur < 0 || read(ur, RNONCE, 16) != 16) die("urandom"); close(ur);
+    (void)argc; int port = atoi(argv[2]); BASE = argv[3]; mkdir_p(BASE); umask(0);        // dosya kipi oluştururken kesin verilir    int ur = open("/dev/urandom", O_RDONLY); if (ur < 0 || read(ur, RNONCE, 16) != 16) die("urandom"); close(ur);
     int ls = socket(AF_INET, SOCK_STREAM, 0), one = 1; setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
     struct sockaddr_in a = {.sin_family = AF_INET, .sin_port = htons(port), .sin_addr.s_addr = INADDR_ANY};
     if (bind(ls, (void *)&a, sizeof a) || listen(ls, 256)) die("listen");
